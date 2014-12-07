@@ -1,8 +1,12 @@
 package com.lappdance.grtrealtime;
 
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
@@ -11,11 +15,15 @@ import com.google.android.gms.maps.model.MarkerOptions;
 public class MapActivity extends FragmentActivity {
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
+    private LocationManager mLocationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
+
+        mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+
         setUpMapIfNeeded();
     }
 
@@ -23,6 +31,7 @@ public class MapActivity extends FragmentActivity {
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
+        centerMapOnUsersLocation();
     }
 
     /**
@@ -61,5 +70,31 @@ public class MapActivity extends FragmentActivity {
      */
     private void setUpMap() {
         mMap.addMarker(new MarkerOptions().position(new LatLng(0, 0)).title("Marker"));
+    }
+
+    /**
+     * @return The user's last known location.
+     */
+    private Location getLastLocation() {
+        Criteria providerCriteria = new Criteria();
+        providerCriteria.setHorizontalAccuracy(Criteria.ACCURACY_MEDIUM);
+        providerCriteria.setCostAllowed(false);
+        providerCriteria.setBearingRequired(false);
+        providerCriteria.setAltitudeRequired(false);
+        providerCriteria.setSpeedRequired(false);
+        return mLocationManager.getLastKnownLocation(mLocationManager.getBestProvider(providerCriteria, true));
+    }
+
+    /**
+     * Centers the map on the user's last known location.
+     */
+    private void centerMapOnUsersLocation() {
+        if(mMap != null) {
+            Location location = getLastLocation();
+            if(location != null) {
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                        new LatLng(location.getLatitude(), location.getLongitude()), 13));
+            }
+        }
     }
 }
