@@ -13,6 +13,13 @@ import com.google.android.gms.maps.model.LatLng;
 
 public class MapActivity extends FragmentActivity {
 
+    /**
+     * The lat/long coordinates for the transit hub at King & Victoria.
+     * If the user hasn't enabled location services for this app, we'll use
+     * these coordinates as the "current location".
+     */
+    private static final LatLng VICTORIA_TRANSIT_HUB = new LatLng(43.452846, -80.498223);
+
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
 
@@ -88,10 +95,20 @@ public class MapActivity extends FragmentActivity {
     private void centerMapOnUsersLocation() {
         if(mMap != null) {
             Location location = getLastLocation();
+
+            //if we're able to get a location fix, use that.
             if(location != null) {
-                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                        new LatLng(location.getLatitude(), location.getLongitude()), 13));
+                LatLng coords = new LatLng(location.getLatitude(), location.getLongitude());
+                centerMap(coords);
+            //otherwise center on the new transit hub location.
+            } else {
+                centerMap(VICTORIA_TRANSIT_HUB);
             }
         }
+    }
+
+    private void centerMap(LatLng coords) {
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                new LatLng(coords.latitude, coords.longitude), 13));
     }
 }
