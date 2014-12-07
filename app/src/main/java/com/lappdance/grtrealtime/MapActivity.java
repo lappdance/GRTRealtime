@@ -2,9 +2,11 @@ package com.lappdance.grtrealtime;
 
 import android.location.Criteria;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.os.Looper;
+import android.support.v4.app.FragmentActivity;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -28,16 +30,17 @@ public class MapActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
-
         setUpMapIfNeeded();
+
+        mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+        centerMapOnLastLocation();
+        mLocationManager.requestSingleUpdate(getLocationProviderCriteria(), new UpdateMapLocationListener(), Looper.getMainLooper());
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
-        centerMapOnUsersLocation();
     }
 
     /**
@@ -76,39 +79,64 @@ public class MapActivity extends FragmentActivity {
         mMap.setMyLocationEnabled(true);
     }
 
-    /**
-     * @return The user's last known location.
-     */
-    private Location getLastLocation() {
+    Criteria getLocationProviderCriteria() {
         Criteria providerCriteria = new Criteria();
         providerCriteria.setHorizontalAccuracy(Criteria.ACCURACY_MEDIUM);
         providerCriteria.setCostAllowed(false);
         providerCriteria.setBearingRequired(false);
         providerCriteria.setAltitudeRequired(false);
         providerCriteria.setSpeedRequired(false);
-        return mLocationManager.getLastKnownLocation(mLocationManager.getBestProvider(providerCriteria, true));
+
+        return providerCriteria;
+    }
+
+    /**
+     * @return The user's last known location.
+     * If we can't get a fix on the user's location, we'll treat the
+     * King / Victoria transit hub as their last location.
+     */
+    private LatLng getLastLocation() {
+        Location userLocation = mLocationManager.getLastKnownLocation(mLocationManager.getBestProvider(getLocationProviderCriteria(), true));
+        if(userLocation != null) {
+            return new LatLng(userLocation.getLatitude(), userLocation.getLongitude());
+        }
+
+        return VICTORIA_TRANSIT_HUB;
     }
 
     /**
      * Centers the map on the user's last known location.
      */
-    private void centerMapOnUsersLocation() {
+    private void centerMapOnLastLocation() {
         if(mMap != null) {
-            Location location = getLastLocation();
-
-            //if we're able to get a location fix, use that.
-            if(location != null) {
-                LatLng coords = new LatLng(location.getLatitude(), location.getLongitude());
-                centerMap(coords);
-            //otherwise center on the new transit hub location.
-            } else {
-                centerMap(VICTORIA_TRANSIT_HUB);
-            }
+            LatLng location = getLastLocation();
+            centerMap(location);
         }
     }
 
     private void centerMap(LatLng coords) {
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                new LatLng(coords.latitude, coords.longitude), 13));
+                new LatLng(coords.latitude, coords.longitude), 16));
+    }
+
+    class UpdateMapLocationListener implements LocationListener {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            LatLng coords = new LatLng(location.getLatitude(), location.getLongitude());
+            centerMap(coords);
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+        }
     }
 }
