@@ -20,6 +20,11 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 public class MapActivity extends FragmentActivity {
     private static final String LOG_TAG = "MapActivity";
 
@@ -148,7 +153,30 @@ public class MapActivity extends FragmentActivity {
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Log.i(LOG_TAG, "got routes: " + response);
+                        try {
+                            Document doc = Jsoup.parse(response);
+                            //the route names are presented in a <ul>, which contains the route
+                            //name and ID in a pair of <span>s.
+                            Elements nodes = doc.select("li span");
+                            for(int i = 0; i < nodes.size() && i + 1 < nodes.size(); i += 2) {
+                                //the first <span> contains the route ID and a hyphen:
+                                //e.g. "7 - ". Integer#parseInt doesn't like the trailing hyphen,
+                                //so we must split the string manually first.
+                                Element idNode = nodes.get(i);
+                                String idText = idNode.text();
+                                int firstSpace = idText.indexOf(' ');
+                                int id = Integer.parseInt(idText.substring(0, firstSpace));
+
+                                //the second <span> contains the route name.
+                                Element nameNode = nodes.get(i + 1);
+                                String name = nameNode.text();
+
+                                Log.i(LOG_TAG, "got route " + id + " " + name);
+                            }
+                        } catch(RuntimeException ex) {
+                            Log.e(LOG_TAG, "failed to parse XML", ex);
+                            throw ex;
+                        }
                     }
                 },
                 new Response.ErrorListener() {
