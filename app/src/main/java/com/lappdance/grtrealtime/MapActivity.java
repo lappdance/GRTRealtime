@@ -7,13 +7,21 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Looper;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 
 public class MapActivity extends FragmentActivity {
+    private static final String LOG_TAG = "MapActivity";
 
     /**
      * The lat/long coordinates for the transit hub at King & Victoria.
@@ -22,8 +30,11 @@ public class MapActivity extends FragmentActivity {
      */
     private static final LatLng VICTORIA_TRANSIT_HUB = new LatLng(43.452846, -80.498223);
 
+    private static final String URL_ALL_ROUTES = "http://realtimemap.grt.ca/Map/GetRoutes/";
+
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
+    private RequestQueue mRequestQueue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +42,11 @@ public class MapActivity extends FragmentActivity {
         setContentView(R.layout.activity_map);
 
         setUpMapIfNeeded();
+
+        if (mRequestQueue == null) {
+            setRequestQueue(newRequestQueue());
+        }
+        mRequestQueue.add(newFetchRoutesRequest());
 
         mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
         centerMapOnLastLocation();
@@ -79,6 +95,14 @@ public class MapActivity extends FragmentActivity {
         mMap.setMyLocationEnabled(true);
     }
 
+    private RequestQueue newRequestQueue() {
+        return Volley.newRequestQueue(getApplicationContext());
+    }
+
+    void setRequestQueue(RequestQueue queue) {
+        mRequestQueue = queue;
+    }
+
     Criteria getLocationProviderCriteria() {
         Criteria providerCriteria = new Criteria();
         providerCriteria.setHorizontalAccuracy(Criteria.ACCURACY_MEDIUM);
@@ -117,6 +141,23 @@ public class MapActivity extends FragmentActivity {
     private void centerMap(LatLng coords) {
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
                 new LatLng(coords.latitude, coords.longitude), 16));
+    }
+
+    private Request<?> newFetchRoutesRequest() {
+        return new StringRequest(Request.Method.GET, URL_ALL_ROUTES,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.i(LOG_TAG, "got routes: " + response);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e(LOG_TAG, "failed to get routes", error);
+                    }
+                }
+        );
     }
 
     class UpdateMapLocationListener implements LocationListener {
