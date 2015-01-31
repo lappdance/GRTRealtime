@@ -44,7 +44,7 @@ public class MapActivity extends FragmentActivity {
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
     private RequestQueue mRequestQueue;
-    private Map<Integer, Route> mRoutes = new HashMap<>();
+    protected Map<Integer, Route> mRoutes = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,11 +56,12 @@ public class MapActivity extends FragmentActivity {
         if (mRequestQueue == null) {
             setRequestQueue(newRequestQueue());
         }
-        mRequestQueue.add(newFetchRoutesRequest());
 
         mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
         centerMapOnLastLocation();
         mLocationManager.requestSingleUpdate(getLocationProviderCriteria(), new UpdateMapLocationListener(), Looper.getMainLooper());
+
+        fetchAllRoutes();
     }
 
     @Override
@@ -153,7 +154,11 @@ public class MapActivity extends FragmentActivity {
                 new LatLng(coords.latitude, coords.longitude), 16));
     }
 
-    private Request<?> newFetchRoutesRequest() {
+    public void fetchAllRoutes() {
+        mRequestQueue.add(newFetchRoutesRequest());
+    }
+
+    Request<?> newFetchRoutesRequest() {
         return new StringRequest(Request.Method.GET, URL_ALL_ROUTES,
                 new Response.Listener<String>() {
                     @Override
@@ -177,6 +182,8 @@ public class MapActivity extends FragmentActivity {
                             Log.e(LOG_TAG, "failed to parse XML", ex);
                             throw ex;
                         }
+
+                        onRoutesFetched();
                     }
                 },
                 new Response.ErrorListener() {
@@ -186,6 +193,14 @@ public class MapActivity extends FragmentActivity {
                     }
                 }
         );
+    }
+
+    protected void onRoutesFetched() {
+        fetchAllStops();
+    }
+
+    public void fetchAllStops() {
+
     }
 
     class UpdateMapLocationListener implements LocationListener {
