@@ -1,43 +1,50 @@
 package com.lappdance.grtrealtime.model;
 
-import android.graphics.Color;
-
-import com.google.gson.annotations.SerializedName;
-
 public class Route implements Comparable<Route> {
-    @SerializedName("RouteId")
-    int mId;
+    private int mId;
+    private String mName;
+    private int mColor;
 
-    @SerializedName("ShortName")
-    String mShortName;
+    public Route() {
+    }
 
-    @SerializedName("Color")
-    String mColorValue;
-
-    @SerializedName("RouteNameHtml")
-    String mRouteName;
-
-    @SerializedName("OrderBy")
-    String mSortKey;
+    public Route(int id, String name, int color) {
+        mId = id;
+        mName = name;
+        mColor = color;
+    }
 
     public int getId() {
         return mId;
     }
 
-    public String getShortName() {
-        return mShortName;
+    public void setId(int id) {
+        mId = id;
     }
 
     public int getColor() {
-        return Color.parseColor("#" + mColorValue);
+        return mColor;
     }
 
-    public String getDisplayName() {
-        return mRouteName;
+    public void setColor(int color) {
+        mColor = color;
+    }
+
+    public String getName() {
+        return mName;
+    }
+
+    public void setName(String name) {
+        mName = name;
     }
 
     @Override
-    public int compareTo(Route another) {
-        return mSortKey.compareTo(another.mSortKey);
+    public int compareTo(Route other) {
+        return mId - other.mId;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%d - %s", mId, mName);
     }
 }

@@ -19,11 +19,15 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.lappdance.grtrealtime.model.Route;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MapActivity extends FragmentActivity {
     private static final String LOG_TAG = "MapActivity";
@@ -40,6 +44,7 @@ public class MapActivity extends FragmentActivity {
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
     private RequestQueue mRequestQueue;
+    private Map<Integer, Route> mRoutes = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,25 +159,20 @@ public class MapActivity extends FragmentActivity {
                     @Override
                     public void onResponse(String response) {
                         try {
+                            mRoutes.clear();
                             Document doc = Jsoup.parse(response);
-                            //the route names are presented in a <ul>, which contains the route
-                            //name and ID in a pair of <span>s.
-                            Elements nodes = doc.select("li span");
-                            for(int i = 0; i < nodes.size() && i + 1 < nodes.size(); i += 2) {
-                                //the first <span> contains the route ID and a hyphen:
-                                //e.g. "7 - ". Integer#parseInt doesn't like the trailing hyphen,
-                                //so we must split the string manually first.
-                                Element idNode = nodes.get(i);
-                                String idText = idNode.text();
-                                int firstSpace = idText.indexOf(' ');
-                                int id = Integer.parseInt(idText.substring(0, firstSpace));
 
-                                //the second <span> contains the route name.
-                                Element nameNode = nodes.get(i + 1);
-                                String name = nameNode.text();
+                            for(Element li : doc.select("li")) {
+                                int id = Integer.parseInt(li.attr("data-value"));
+                                int color = Integer.parseInt(li.attr("color-scheme"), 16);
 
-                                Log.i(LOG_TAG, "got route " + id + " " + name);
+                                Elements spans = li.select("span");
+                                String name = spans.last().text();
+
+                                Route r = new Route(id, name, color);
+                                mRoutes.put(id, r);
                             }
+
                         } catch(RuntimeException ex) {
                             Log.e(LOG_TAG, "failed to parse XML", ex);
                             throw ex;
