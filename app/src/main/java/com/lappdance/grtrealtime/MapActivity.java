@@ -18,7 +18,9 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.reflect.TypeToken;
 import com.lappdance.grtrealtime.model.Route;
 import com.lappdance.grtrealtime.model.Stop;
@@ -154,8 +156,10 @@ public class MapActivity extends FragmentActivity {
     }
 
     private void centerMap(LatLng coords) {
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                new LatLng(coords.latitude, coords.longitude), 16));
+        if(mMap != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                    new LatLng(coords.latitude, coords.longitude), 16));
+        }
     }
 
     public void fetchAllRoutes() {
@@ -209,21 +213,27 @@ public class MapActivity extends FragmentActivity {
         }
     }
 
-    Request<?> newFetchAllStopsRequest(Route route) {
+    Request<?> newFetchAllStopsRequest(final Route route) {
         return new GsonRequest<>(String.format(URL_STOPS_FOR_ROUTE, route.getId()),
                 new TypeToken<List<Stop>>() {}.getType(), null,
                 new Response.Listener<List<Stop>>() {
                     @Override
                     public void onResponse(List<Stop> response) {
                         for(Stop stop : response) {
-                            Log.d(LOG_TAG, "got stop " + stop);
+                            if(mMap != null) {
+                                mMap.addMarker(new MarkerOptions()
+                                                .position(stop.getLatLng())
+                                                .anchor(0.5f, 0.5f)
+                                                .icon(BitmapDescriptorFactory.fromBitmap(Stop.getIcon(getResources(), route.getColor())))
+                                );
+                            }
                         }
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e(LOG_TAG, "failed to get routes", error);
+                        Log.e(LOG_TAG, "failed to get stops", error);
                     }
                 }
         );

@@ -9,9 +9,9 @@ public class Route implements Comparable<Route> {
     }
 
     public Route(int id, String name, int color) {
-        mId = id;
-        mName = name;
-        mColor = color;
+        setId(id);
+        setName(name);
+        setColor(color);
     }
 
     public int getId() {
@@ -27,7 +27,7 @@ public class Route implements Comparable<Route> {
     }
 
     public void setColor(int color) {
-        mColor = color;
+        mColor = 0xff000000 | color;
     }
 
     public String getName() {
