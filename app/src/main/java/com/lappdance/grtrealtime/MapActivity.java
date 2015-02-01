@@ -19,7 +19,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.gson.reflect.TypeToken;
 import com.lappdance.grtrealtime.model.Route;
+import com.lappdance.grtrealtime.model.Stop;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -27,6 +29,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapActivity extends FragmentActivity {
@@ -40,6 +43,7 @@ public class MapActivity extends FragmentActivity {
     private static final LatLng VICTORIA_TRANSIT_HUB = new LatLng(43.452846, -80.498223);
 
     private static final String URL_ALL_ROUTES = "http://realtimemap.grt.ca/Map/GetRoutes/";
+    private static final String URL_STOPS_FOR_ROUTE = "http://realtimemap.grt.ca/Stop/GetByRouteId?routeId=%d";
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
@@ -200,7 +204,29 @@ public class MapActivity extends FragmentActivity {
     }
 
     public void fetchAllStops() {
+        for(Route route : mRoutes.values()) {
+            mRequestQueue.add(newFetchAllStopsRequest(route));
+        }
+    }
 
+    Request<?> newFetchAllStopsRequest(Route route) {
+        return new GsonRequest<>(String.format(URL_STOPS_FOR_ROUTE, route.getId()),
+                new TypeToken<List<Stop>>() {}.getType(), null,
+                new Response.Listener<List<Stop>>() {
+                    @Override
+                    public void onResponse(List<Stop> response) {
+                        for(Stop stop : response) {
+                            Log.d(LOG_TAG, "got stop " + stop);
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e(LOG_TAG, "failed to get routes", error);
+                    }
+                }
+        );
     }
 
     class UpdateMapLocationListener implements LocationListener {
