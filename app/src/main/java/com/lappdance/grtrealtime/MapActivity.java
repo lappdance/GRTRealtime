@@ -7,13 +7,32 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Looper;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.gson.reflect.TypeToken;
+import com.lappdance.grtrealtime.model.Route;
+import com.lappdance.grtrealtime.model.Stop;
+import com.lappdance.grtrealtime.network.FetchRoutesStrategy;
+import com.lappdance.grtrealtime.network.FetchRoutesStrategyFactory;
+import com.lappdance.grtrealtime.network.OnRoutesFetchedListener;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MapActivity extends FragmentActivity {
+    private static final String LOG_TAG = "MapActivity";
 
     /**
      * The lat/long coordinates for the transit hub at King & Victoria.
@@ -22,8 +41,13 @@ public class MapActivity extends FragmentActivity {
      */
     private static final LatLng VICTORIA_TRANSIT_HUB = new LatLng(43.452846, -80.498223);
 
+    private static final String URL_STOPS_FOR_ROUTE = "http://realtimemap.grt.ca/Stop/GetByRouteId?routeId=%d";
+
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
+    private RequestQueue mRequestQueue;
+    protected Map<Integer, Route> mRoutes = new HashMap<>();
+    private FetchRoutesStrategyFactory mRoutesStrategyFactory;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,9 +56,15 @@ public class MapActivity extends FragmentActivity {
 
         setUpMapIfNeeded();
 
+        if (mRequestQueue == null) {
+            setRequestQueue(newRequestQueue());
+        }
+
         mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
         centerMapOnLastLocation();
         mLocationManager.requestSingleUpdate(getLocationProviderCriteria(), new UpdateMapLocationListener(), Looper.getMainLooper());
+
+        fetchAllRoutes();
     }
 
     @Override
@@ -79,6 +109,14 @@ public class MapActivity extends FragmentActivity {
         mMap.setMyLocationEnabled(true);
     }
 
+    private RequestQueue newRequestQueue() {
+        return Volley.newRequestQueue(getApplicationContext());
+    }
+
+    void setRequestQueue(RequestQueue queue) {
+        mRequestQueue = queue;
+    }
+
     Criteria getLocationProviderCriteria() {
         Criteria providerCriteria = new Criteria();
         providerCriteria.setHorizontalAccuracy(Criteria.ACCURACY_MEDIUM);
@@ -115,8 +153,66 @@ public class MapActivity extends FragmentActivity {
     }
 
     private void centerMap(LatLng coords) {
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                new LatLng(coords.latitude, coords.longitude), 16));
+        if(mMap != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                    new LatLng(coords.latitude, coords.longitude), 16));
+        }
+    }
+
+    public void fetchAllRoutes() {
+        if(mRoutesStrategyFactory == null) {
+            mRoutesStrategyFactory = new FetchRoutesStrategyFactory(this, mRequestQueue);
+        }
+
+        FetchRoutesStrategy fetchRoutesStrategy = mRoutesStrategyFactory.newStrategy();
+        fetchRoutesStrategy.fetchRoutes(new OnRoutesFetchedListener() {
+            @Override
+            public void onRoutesFetched(Map<Integer, Route> routes) {
+                if(routes != null) {
+                    mRoutes = routes;
+                } else {
+                    mRoutes.clear();
+                }
+
+                MapActivity.this.onRoutesFetched();
+            }
+        });
+    }
+
+    protected void onRoutesFetched() {
+        fetchAllStops();
+    }
+
+    public void fetchAllStops() {
+        for(Route route : mRoutes.values()) {
+            mRequestQueue.add(newFetchAllStopsRequest(route));
+        }
+    }
+
+    Request<?> newFetchAllStopsRequest(final Route route) {
+        return new GsonRequest<>(String.format(URL_STOPS_FOR_ROUTE, route.getId()),
+                new TypeToken<List<Stop>>() {}.getType(), null,
+                new Response.Listener<List<Stop>>() {
+                    @Override
+                    public void onResponse(List<Stop> response) {
+                        for(Stop stop : response) {
+                            if(mMap != null) {
+                                mMap.addMarker(new MarkerOptions()
+                                                .position(stop.getLatLng())
+                                                .anchor(0.5f, 0.5f)
+                                                .icon(BitmapDescriptorFactory.fromBitmap(Stop.getIcon(getResources(), route.getColor())))
+                                );
+                            }
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e(LOG_TAG, "failed to get stops", error);
+                    }
+                }
+        );
     }
 
     class UpdateMapLocationListener implements LocationListener {
