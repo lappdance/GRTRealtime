@@ -13,7 +13,6 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -24,11 +23,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.reflect.TypeToken;
 import com.lappdance.grtrealtime.model.Route;
 import com.lappdance.grtrealtime.model.Stop;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import com.lappdance.grtrealtime.network.FetchRoutesStrategy;
+import com.lappdance.grtrealtime.network.FetchRoutesStrategyFactory;
+import com.lappdance.grtrealtime.network.OnRoutesFetchedListener;
 
 import java.util.HashMap;
 import java.util.List;
@@ -44,13 +41,13 @@ public class MapActivity extends FragmentActivity {
      */
     private static final LatLng VICTORIA_TRANSIT_HUB = new LatLng(43.452846, -80.498223);
 
-    private static final String URL_ALL_ROUTES = "http://realtimemap.grt.ca/Map/GetRoutes/";
     private static final String URL_STOPS_FOR_ROUTE = "http://realtimemap.grt.ca/Stop/GetByRouteId?routeId=%d";
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private LocationManager mLocationManager;
     private RequestQueue mRequestQueue;
     protected Map<Integer, Route> mRoutes = new HashMap<>();
+    private FetchRoutesStrategyFactory mRoutesStrategyFactory;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,44 +160,23 @@ public class MapActivity extends FragmentActivity {
     }
 
     public void fetchAllRoutes() {
-        mRequestQueue.add(newFetchRoutesRequest());
-    }
+        if(mRoutesStrategyFactory == null) {
+            mRoutesStrategyFactory = new FetchRoutesStrategyFactory(this, mRequestQueue);
+        }
 
-    Request<?> newFetchRoutesRequest() {
-        return new StringRequest(Request.Method.GET, URL_ALL_ROUTES,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        try {
-                            mRoutes.clear();
-                            Document doc = Jsoup.parse(response);
-
-                            for(Element li : doc.select("li")) {
-                                int id = Integer.parseInt(li.attr("data-value"));
-                                int color = Integer.parseInt(li.attr("color-scheme"), 16);
-
-                                Elements spans = li.select("span");
-                                String name = spans.last().text();
-
-                                Route r = new Route(id, name, color);
-                                mRoutes.put(id, r);
-                            }
-
-                        } catch(RuntimeException ex) {
-                            Log.e(LOG_TAG, "failed to parse XML", ex);
-                            throw ex;
-                        }
-
-                        onRoutesFetched();
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e(LOG_TAG, "failed to get routes", error);
-                    }
+        FetchRoutesStrategy fetchRoutesStrategy = mRoutesStrategyFactory.newStrategy();
+        fetchRoutesStrategy.fetchRoutes(new OnRoutesFetchedListener() {
+            @Override
+            public void onRoutesFetched(Map<Integer, Route> routes) {
+                if(routes != null) {
+                    mRoutes = routes;
+                } else {
+                    mRoutes.clear();
                 }
-        );
+
+                MapActivity.this.onRoutesFetched();
+            }
+        });
     }
 
     protected void onRoutesFetched() {
