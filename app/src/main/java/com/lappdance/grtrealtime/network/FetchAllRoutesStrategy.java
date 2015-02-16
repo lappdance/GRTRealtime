@@ -9,11 +9,6 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.lappdance.grtrealtime.model.Route;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,7 +44,7 @@ public class FetchAllRoutesStrategy implements FetchRoutesStrategy {
 
                                     String name = parts[0];
                                     int id = Integer.parseInt(parts[5]);
-                                    Route r = new Route(id, name, 0);
+                                    Route r = new Route(id, name, Route.getColor(id));
                                     routes.put(id, r);
 
                                 } catch(NumberFormatException ex) {

@@ -46,12 +46,11 @@ public class FetchInServiceRoutesStrategy implements FetchRoutesStrategy {
 
                             for(Element li : doc.select("li")) {
                                 int id = Integer.parseInt(li.attr("data-value"));
-                                int color = Integer.parseInt(li.attr("color-scheme"), 16);
 
                                 Elements spans = li.select("span");
                                 String name = spans.last().text();
 
-                                Route r = new Route(id, name, color);
+                                Route r = new Route(id, name, Route.getColor(id));
                                 routes.put(id, r);
                             }
 
